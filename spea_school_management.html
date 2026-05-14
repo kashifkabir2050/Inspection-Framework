@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SPEA School Management System</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --primary-light: #2557a7;
+    --accent: #e8a020;
+    --accent-light: #f5c842;
+    --bg: #f0f4f8;
+    --bg2: #ffffff;
+    --bg3: #e8edf2;
+    --text: #1a2332;
+    --text2: #4a5568;
+    --text3: #718096;
+    --border: #d1dae6;
+    --success: #2d7d46;
+    --success-bg: #e6f7ec;
+    --danger: #c0392b;
+    --danger-bg: #fdecea;
+    --warning: #b7760d;
+    --warning-bg: #fff8e1;
+    --info: #1565c0;
+    --info-bg: #e3f2fd;
+    --shadow: 0 2px 8px rgba(26,58,92,0.10);
+    --shadow-lg: 0 8px 32px rgba(26,58,92,0.14);
+    --radius: 10px;
+    --radius-lg: 16px;
+    --sidebar-w: 260px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Auth Screen ── */
+  #auth-screen {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--primary) 0%, #0d2137 60%, #1a3a5c 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .auth-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .auth-logo {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .auth-logo .logo-icon {
+    width: 64px; height: 64px;
+    background: var(--primary);
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .75rem;
+  }
+
+  .auth-logo .logo-icon svg { width: 36px; height: 36px; fill: #fff; }
+
+  .auth-logo h1 { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+  .auth-logo p { font-size: .8rem; color: var(--text3); margin-top: .25rem; }
+
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .auth-tab {
+    flex: 1; padding: .6rem; text-align: center;
+    cursor: pointer; font-size: .85rem; font-weight: 600;
+    background: transparent; border: none; color: var(--text3);
+    transition: all .2s;
+  }
+  .auth-tab.active { background: var(--primary); color: #fff; }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text2); margin-bottom: .4rem; }
+
+  .form-control {
+    width: 100%; padding: .65rem .9rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .9rem; color: var(--text);
+    background: #fff; transition: border-color .2s;
+  }
+  .form-control:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(37,87,167,.12); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: .5rem; padding: .65rem 1.2rem;
+    border: none; border-radius: var(--radius);
+    font-size: .85rem; font-weight: 600;
+    cursor: pointer; transition: all .15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-light); }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { background: #d48e10; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-outline:hover { background: var(--bg3); }
+  .btn-sm { padding: .4rem .8rem; font-size: .78rem; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ── App Layout ── */
+  #app { display: none; min-height: 100vh; }
+  #app.active { display: flex; }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--primary);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+    min-height: 100vh;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+
+  .sidebar-brand {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    display: flex; align-items: center; gap: .75rem;
+  }
+
+  .sidebar-brand .brand-icon {
+    width: 38px; height: 38px;
+    background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sidebar-brand .brand-icon svg { width: 22px; height: 22px; fill: #fff; }
+  .sidebar-brand h2 { font-size: .9rem; font-weight: 700; color: #fff; line-height: 1.2; }
+  .sidebar-brand p { font-size: .7rem; color: rgba(255,255,255,.55); }
+
+  .sidebar-user {
+    padding: .75rem 1rem;
+    display: flex; align-items: center; gap: .6rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .75rem; flex-shrink: 0;
+  }
+  .avatar-primary { background: var(--accent); color: #fff; }
+  .avatar-secondary { background: rgba(255,255,255,.2); color: #fff; }
+
+  .sidebar-user .info { flex: 1; min-width: 0; }
+  .sidebar-user .name { font-size: .8rem; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-user .role { font-size: .7rem; color: rgba(255,255,255,.55); }
+
+  .sidebar-nav { flex: 1; padding: .75rem 0; }
+  .nav-section { padding: .4rem 1rem .2rem; font-size: .65rem; font-weight: 700; color: rgba(255,255,255,.4); letter-spacing: .08em; text-transform: uppercase; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .55rem 1rem; cursor: pointer;
+    color: rgba(255,255,255,.7); font-size: .84rem;
+    transition: all .15s; border-left: 3px solid transparent;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,.12); color: #fff; border-left-color: var(--accent); font-weight: 600; }
+
+  .sidebar-footer { padding: .75rem 1rem; border-top: 1px solid rgba(255,255,255,.1); }
+
+  /* Main Content */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-x: hidden; }
+
+  .topbar {
+    background: #fff; border-bottom: 1px solid var(--border);
+    padding: .75rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+
+  .topbar-title { font-size: 1.05rem; font-weight: 700; color: var(--primary); }
+  .topbar-right { display: flex; align-items: center; gap: .75rem; }
+
+  .content { flex: 1; padding: 1.5rem; }
+
+  /* Cards */
+  .card {
+    background: #fff; border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .5rem;
+  }
+  .card-title { font-size: .95rem; font-weight: 700; color: var(--primary); }
+  .card-body { padding: 1.25rem; }
+
+  /* Stats Grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+  .stat-card {
+    background: #fff; border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1rem;
+  }
+
+  .stat-label { font-size: .72rem; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+  .stat-value { font-size: 1.6rem; font-weight: 800; color: var(--primary); line-height: 1; }
+  .stat-sub { font-size: .72rem; color: var(--text3); margin-top: .25rem; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: .65rem .9rem; text-align: left;
+    font-size: .75rem; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .06em;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td { padding: .7rem .9rem; border-bottom: 1px solid var(--bg3); font-size: .84rem; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbfd; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: .2rem .6rem; border-radius: 20px;
+    font-size: .7rem; font-weight: 600;
+  }
+  .badge-success { background: var(--success-bg); color: var(--success); }
+  .badge-danger { background: var(--danger-bg); color: var(--danger); }
+  .badge-warning { background: var(--warning-bg); color: var(--warning); }
+  .badge-info { background: var(--info-bg); color: var(--info); }
+  .badge-primary { background: #e8edf8; color: var(--primary); }
+  .badge-accent { background: #fff3d6; color: #7a4f0b; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 1rem;
+  }
+  .modal {
+    background: #fff; border-radius: var(--radius-lg);
+    width: 100%; max-width: 540px; max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-header {
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header h3 { font-size: 1rem; font-weight: 700; color: var(--primary); }
+  .modal-body { padding: 1.25rem; }
+  .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; gap: .75rem; justify-content: flex-end; }
+
+  .close-btn { background: none; border: none; cursor: pointer; color: var(--text3); padding: .25rem; border-radius: 6px; }
+  .close-btn:hover { background: var(--bg3); color: var(--text); }
+  .close-btn svg { width: 20px; height: 20px; }
+
+  /* File Explorer */
+  .file-explorer { display: flex; gap: 1rem; }
+  .folder-tree { width: 220px; flex-shrink: 0; }
+  .folder-pane { flex: 1; min-width: 0; }
+
+  .folder-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .45rem .75rem; border-radius: 8px;
+    cursor: pointer; font-size: .83rem; color: var(--text2);
+    transition: background .15s;
+  }
+  .folder-item:hover { background: var(--bg3); }
+  .folder-item.active { background: var(--info-bg); color: var(--info); font-weight: 600; }
+  .folder-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sub-folder-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .4rem .75rem .4rem 1.75rem;
+    border-radius: 8px; cursor: pointer;
+    font-size: .8rem; color: var(--text3);
+    transition: background .15s;
+  }
+  .sub-folder-item:hover { background: var(--bg3); color: var(--text2); }
+  .sub-folder-item.active { background: var(--accent); color: #fff; font-weight: 600; }
+  .sub-folder-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .75rem; }
+
+  .file-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .9rem .75rem;
+    cursor: pointer; transition: all .15s;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: .5rem;
+  }
+  .file-card:hover { background: #fff; box-shadow: var(--shadow); border-color: var(--primary-light); }
+  .file-card .file-icon { font-size: 2rem; }
+  .file-card .file-name { font-size: .75rem; font-weight: 600; color: var(--text); word-break: break-word; line-height: 1.3; }
+  .file-card .file-meta { font-size: .68rem; color: var(--text3); }
+  .file-card .file-actions { display: flex; gap: .3rem; margin-top: .25rem; }
+
+  /* Standard Cards */
+  .standard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .standard-card {
+    background: #fff; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); padding: 1.25rem;
+    cursor: pointer; transition: all .15s;
+  }
+  .standard-card:hover { box-shadow: var(--shadow-lg); border-color: var(--primary-light); transform: translateY(-2px); }
+  .standard-card .std-num { font-size: .7rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; }
+  .standard-card .std-title { font-size: 1rem; font-weight: 700; color: var(--primary); margin: .3rem 0 .5rem; }
+  .standard-card .std-areas { display: flex; flex-wrap: wrap; gap: .35rem; }
+
+  /* Toast */
+  #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
+  .toast {
+    padding: .7rem 1.1rem; border-radius: var(--radius);
+    font-size: .83rem; font-weight: 500; color: #fff;
+    box-shadow: var(--shadow-lg); max-width: 320px;
+    animation: slideIn .2s ease;
+  }
+  .toast-success { background: var(--success); }
+  .toast-danger { background: var(--danger); }
+  .toast-info { background: var(--primary-light); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Setup Screen */
+  #setup-screen {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--primary) 0%, #0d2137 100%);
+    display: none; align-items: center; justify-content: center; padding: 2rem;
+    flex-direction: column; gap: 1.5rem;
+  }
+
+  .setup-card { background: #fff; border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 540px; }
+  .setup-card h2 { font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-bottom: .5rem; }
+  .setup-card p { font-size: .85rem; color: var(--text2); margin-bottom: 1.25rem; }
+
+  /* Breadcrumb */
+  .breadcrumb { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--text3); margin-bottom: 1rem; }
+  .breadcrumb .crumb { cursor: pointer; }
+  .breadcrumb .crumb:hover { color: var(--primary-light); }
+  .breadcrumb .sep { color: var(--border); }
+  .breadcrumb .current { color: var(--text); font-weight: 600; }
+
+  /* Report */
+  .report-section { margin-bottom: 2rem; }
+  .report-section h3 { font-size: .9rem; font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: .4rem; margin-bottom: 1rem; }
+  .report-table td, .report-table th { border: 1px solid var(--border); }
+  .report-table th { background: var(--primary); color: #fff; }
+
+  /* Utility */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .flex-row { display: flex; align-items: center; gap: .75rem; }
+  .flex-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+  .gap-sm { gap: .5rem; }
+  .mt-1 { margin-top: .75rem; }
+  .mt-2 { margin-top: 1.25rem; }
+  .mb-1 { margin-bottom: .75rem; }
+  .mb-2 { margin-bottom: 1.25rem; }
+  .text-sm { font-size: .78rem; color: var(--text3); }
+  .text-center { text-align: center; }
+  .empty-state { padding: 3rem 1rem; text-align: center; color: var(--text3); }
+  .empty-state svg { width: 48px; height: 48px; margin: 0 auto .75rem; display: block; opacity: .35; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .alert { padding: .75rem 1rem; border-radius: var(--radius); font-size: .84rem; margin-bottom: 1rem; }
+  .alert-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c3; }
+  .alert-success { background: var(--success-bg); color: var(--success); border: 1px solid #b7e4c7; }
+  .alert-info { background: var(--info-bg); color: var(--info); border: 1px solid #bbdefb; }
+
+  /* Print */
+  @media print {
+    .sidebar, .topbar, .btn, .no-print { display: none !important; }
+    .main { margin: 0; }
+    .content { padding: 0; }
+    body { background: #fff; }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .file-explorer { flex-direction: column; }
+    .folder-tree { width: 100%; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; min-height: 80px; }
+
+  .focus-area-tag {
+    display: inline-flex; align-items: center;
+    padding: .15rem .5rem; border-radius: 4px;
+    font-size: .68rem; font-weight: 500;
+    background: var(--bg3); color: var(--text2);
+  }
+
+  .preview-frame {
+    width: 100%; height: 600px; border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <h2>🔧 Firebase Configuration Required</h2>
+    <p>To use this application, you need to connect your Firebase project. Enter your Firebase configuration details below. You can find these in your Firebase Console → Project Settings → General → Your apps.</p>
+
+    <div class="alert alert-info">
+      <strong>Required Firebase Services:</strong> Authentication (Email/Password), Firestore Database, Storage
+    </div>
+
+    <div class="form-group">
+      <label>API Key</label>
+      <input class="form-control" id="cfg-apiKey" placeholder="AIzaSy..." />
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Auth Domain</label>
+        <input class="form-control" id="cfg-authDomain" placeholder="xxx.firebaseapp.com" />
+      </div>
+      <div class="form-group">
+        <label>Project ID</label>
+        <input class="form-control" id="cfg-projectId" placeholder="my-project" />
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Storage Bucket</label>
+        <input class="form-control" id="cfg-storageBucket" placeholder="xxx.appspot.com" />
+      </div>
+      <div class="form-group">
+        <label>Messaging Sender ID</label>
+        <input class="form-control" id="cfg-messagingSenderId" placeholder="1234567890" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>App ID</label>
+      <input class="form-control" id="cfg-appId" placeholder="1:xxx:web:xxx" />
+    </div>
+    <div id="setup-error" class="alert alert-danger" style="display:none"></div>
+    <button class="btn btn-primary btn-full" onclick="initFirebase()">Connect to Firebase</button>
+  </div>
+
+  <div class="setup-card" style="background:rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);">
+    <p style="color:rgba(255,255,255,.8); font-size:.82rem; margin:0;">
+      <strong style="color:#fff">First-time setup:</strong> After connecting Firebase, the app will automatically create the 6 SPEA standards structure and an admin account (admin@spea.ae / admin123456). You can change these credentials after logging in.
+    </p>
+  </div>
+</div>
+
+<!-- Auth Screen -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <h1>SPEA School System</h1>
+      <p>Sharjah Private Education Authority</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('setup')">First-Time Setup</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input class="form-control" id="login-email" type="email" placeholder="you@school.ae" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input class="form-control" id="login-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')loginUser()" />
+      </div>
+      <div id="login-error" class="alert alert-danger" style="display:none"></div>
+      <button class="btn btn-primary btn-full" id="login-btn" onclick="loginUser()">Sign In</button>
+    </div>
+
+    <!-- First-Time Setup Form -->
+    <div id="setup-form" style="display:none">
+      <div class="alert alert-info" style="font-size:.82rem;">
+        Use this tab to create your <strong>Admin account</strong> for the first time. After creation, use the Sign In tab to log in.
+      </div>
+      <div class="form-group">
+        <label>Admin Name *</label>
+        <input class="form-control" id="setup-name" placeholder="e.g. SPEA Administrator" value="SPEA Administrator" />
+      </div>
+      <div class="form-group">
+        <label>Admin Email *</label>
+        <input class="form-control" id="setup-admin-email" type="email" placeholder="admin@school.ae" value="admin@spea.ae" />
+      </div>
+      <div class="form-group">
+        <label>Admin Password * (min 6 chars)</label>
+        <input class="form-control" id="setup-admin-password" type="password" placeholder="Choose a strong password" />
+      </div>
+      <div id="setup-form-error" class="alert alert-danger" style="display:none"></div>
+      <div id="setup-form-success" class="alert alert-success" style="display:none"></div>
+      <button class="btn btn-primary btn-full" id="setup-create-btn" onclick="createAdminAccount()">Create Admin Account &amp; Setup Folders</button>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <h2>SPEA</h2>
+        <p>School Management</p>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="avatar avatar-primary" id="sb-avatar">AD</div>
+      <div class="info">
+        <div class="name" id="sb-name">Admin User</div>
+        <div class="role" id="sb-role">Administrator</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <!-- Populated by JS -->
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-outline btn-full btn-sm" onclick="logout()" style="color:rgba(255,255,255,.7); border-color:rgba(255,255,255,.2);">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-right" id="topbar-right"></div>
+    </div>
+    <div class="content" id="page-content">
+      <!-- Dynamic content -->
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="modal-container"></div>
+<div id="toast-container"></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   SPEA School Management System
+   Full Application Logic
+══════════════════════════════════════════════ */
+
+let db, auth, storage, currentUser, currentUserDoc;
+
+const SPEA_STANDARDS = [
+  {
+    id: 'std1', number: 1, title: "Students' Achievement",
+    color: '#1565c0',
+    focusAreas: ['Progress in Core Subjects', 'External Examination Results', 'Performance vs Curriculum', 'Student Group Achievement']
+  },
+  {
+    id: 'std2', number: 2, title: "Students' Personal & Social Development",
+    color: '#2e7d32',
+    focusAreas: ['Attendance & Punctuality', 'Respect & Discipline', 'Leadership Skills', 'UAE Culture & Values', 'Community Involvement']
+  },
+  {
+    id: 'std3', number: 3, title: 'Teaching and Assessment',
+    color: '#6a1b9a',
+    focusAreas: ['Lesson Planning', 'Teaching Strategies', 'Student Engagement', 'Differentiation', 'Formative & Summative Assessments']
+  },
+  {
+    id: 'std4', number: 4, title: 'Curriculum',
+    color: '#e65100',
+    focusAreas: ['Alignment with Standards', 'Breadth & Balance', 'Cross-curricular Links', 'Adaptation to Students']
+  },
+  {
+    id: 'std5', number: 5, title: 'Protection, Care, Guidance & Support',
+    color: '#c62828',
+    focusAreas: ['Child Protection & Safeguarding', 'Health & Safety', 'Counseling Services', 'Inclusion & SEN Support', 'Emotional Well-being']
+  },
+  {
+    id: 'std6', number: 6, title: 'Leadership and Management',
+    color: '#004d40',
+    focusAreas: ['Vision & Strategic Planning', 'Self-evaluation & Improvement', 'Staff Professional Development', 'Parent Partnerships', 'Governance & Resources']
+  }
+];
+
+const RATINGS = ['Outstanding', 'Very Good', 'Good', 'Acceptable', 'Weak', 'Very Weak'];
+
+// ── Firebase Init ──────────────────────────────
+async function initFirebase() {
+  const config = {
+    apiKey:            document.getElementById('cfg-apiKey').value.trim(),
+    authDomain:        document.getElementById('cfg-authDomain').value.trim(),
+    projectId:         document.getElementById('cfg-projectId').value.trim(),
+    storageBucket:     document.getElementById('cfg-storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+    appId:             document.getElementById('cfg-appId').value.trim()
+  };
+
+  if (!config.apiKey || !config.projectId) {
+    document.getElementById('setup-error').style.display = '';
+    document.getElementById('setup-error').textContent = 'API Key and Project ID are required.';
+    return;
+  }
+
+  const btn = document.querySelector('#setup-screen button.btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(config);
+    db      = firebase.firestore();
+    auth    = firebase.auth();
+    storage = firebase.storage();
+
+    // Test connection by pinging Firestore
+    await db.collection('_ping').doc('test').set({ ts: Date.now() });
+
+    // Save config for future loads
+    localStorage.setItem('spea_firebase_config', JSON.stringify(config));
+
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display  = 'flex';
+    document.getElementById('setup-error').style.display  = 'none';
+
+    // Auto-switch to First-Time Setup if no users exist yet
+    const usersSnap = await db.collection('users').limit(1).get();
+    if (usersSnap.empty) {
+      switchAuthTab('setup');
+    }
+
+    setupAuthListener();
+    showToast('Firebase connected! ' + (usersSnap.empty ? 'Please create your admin account.' : 'Please sign in.'), 'success');
+  } catch (e) {
+    document.getElementById('setup-error').style.display  = '';
+    document.getElementById('setup-error').textContent    = 'Firebase error: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = 'Connect to Firebase';
+  }
+}
+
+async function loadSavedConfig() {
+  const saved = localStorage.getItem('spea_firebase_config');
+  if (saved) {
+    try {
+      const c = JSON.parse(saved);
+      if (!firebase.apps.length) firebase.initializeApp(c);
+      db      = firebase.firestore();
+      auth    = firebase.auth();
+      storage = firebase.storage();
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('auth-screen').style.display  = 'flex';
+      // If no users exist yet, jump straight to First-Time Setup tab
+      try {
+        const usersSnap = await db.collection('users').limit(1).get();
+        if (usersSnap.empty) switchAuthTab('setup');
+      } catch(e) {}
+      setupAuthListener();
+    } catch(e) {
+      localStorage.removeItem('spea_firebase_config');
+      document.getElementById('setup-screen').style.display = 'flex';
+    }
+  } else {
+    document.getElementById('setup-screen').style.display = 'flex';
+  }
+}
+
+function setupAuthListener() {
+  auth.onAuthStateChanged(async user => {
+    if (user) {
+      const doc = await db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        currentUser = user;
+        currentUserDoc = { uid: user.uid, ...doc.data() };
+        showApp();
+      } else {
+        auth.signOut();
+      }
+    } else {
+      currentUser = null; currentUserDoc = null;
+      document.getElementById('app').classList.remove('active');
+      document.getElementById('auth-screen').style.display = 'flex';
+    }
+  });
+}
+
+// ── Auth Functions ──────────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', i === (tab === 'login' ? 0 : 1)));
+  document.getElementById('login-form').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('setup-form').style.display = tab === 'setup' ? '' : 'none';
+}
+
+async function createAdminAccount() {
+  const name     = document.getElementById('setup-name').value.trim();
+  const email    = document.getElementById('setup-admin-email').value.trim();
+  const password = document.getElementById('setup-admin-password').value;
+  const errEl    = document.getElementById('setup-form-error');
+  const sucEl    = document.getElementById('setup-form-success');
+  const btn      = document.getElementById('setup-create-btn');
+
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  if (!name || !email || !password) {
+    errEl.style.display = ''; errEl.textContent = 'All fields are required.'; return;
+  }
+  if (password.length < 6) {
+    errEl.style.display = ''; errEl.textContent = 'Password must be at least 6 characters.'; return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Setting up...';
+
+  try {
+    // Step 1: Create admin user in Firebase Auth
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    const uid = cred.user.uid;
+
+    // Step 2: Save admin profile in Firestore
+    await db.collection('users').doc(uid).set({
+      id: 'ADM001', name, email,
+      designation: 'System Administrator',
+      role: 'admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Step 3: Seed all 6 SPEA standards + focus area folders
+    for (const std of SPEA_STANDARDS) {
+      await db.collection('folders').doc(std.id).set({
+        id: std.id, name: std.title,
+        standardNumber: std.number,
+        type: 'standard', parentId: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      for (const fa of std.focusAreas) {
+        const faId = std.id + '_' + fa.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        await db.collection('folders').doc(faId).set({
+          id: faId, name: fa,
+          type: 'focus_area', parentId: std.id,
+          standardId: std.id,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    // Step 4: Sign out so user logs in properly
+    await auth.signOut();
+
+    sucEl.style.display = '';
+    sucEl.innerHTML = `✅ <strong>Setup complete!</strong> Admin account created for <strong>${email}</strong>.<br>Now go to <strong>Sign In</strong> tab and log in with your credentials.`;
+    btn.disabled = false;
+    btn.innerHTML = 'Setup Complete ✓';
+
+    // Auto-fill login form
+    document.getElementById('login-email').value = email;
+    document.getElementById('login-password').value = '';
+
+  } catch(e) {
+    errEl.style.display = '';
+    if (e.code === 'auth/email-already-in-use') {
+      errEl.textContent = 'This email is already registered. Use the Sign In tab to log in.';
+    } else {
+      errEl.textContent = 'Error: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.innerHTML = 'Create Admin Account & Setup Folders';
+  }
+}
+
+async function loginUser() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  if (!email || !password) { showLoginError('Please enter email and password.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    document.getElementById('login-error').style.display = 'none';
+  } catch (e) {
+    showLoginError('Invalid email or password.');
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.style.display = ''; el.textContent = msg;
+}
+
+async function logout() {
+  await auth.signOut();
+}
+
+// ── App Shell ──────────────────────────────────
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+
+  const u = currentUserDoc;
+  document.getElementById('sb-avatar').textContent = initials(u.name);
+  document.getElementById('sb-name').textContent = u.name;
+  document.getElementById('sb-role').textContent = u.role === 'admin' ? 'Administrator' : u.designation || 'Teacher';
+
+  renderSidebar();
+  navigateTo('dashboard');
+}
+
+function initials(name) {
+  return (name || '??').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+
+function renderSidebar() {
+  const isAdmin = currentUserDoc.role === 'admin';
+  const nav = document.getElementById('sidebar-nav');
+
+  const items = isAdmin ? [
+    { section: 'Main' },
+    { id: 'dashboard', icon: homeIcon(), label: 'Dashboard' },
+    { id: 'users', icon: usersIcon(), label: 'User Management' },
+    { section: 'Documents' },
+    { id: 'files', icon: folderIcon(), label: 'File Management' },
+    { section: 'Quality Assurance' },
+    { id: 'standards', icon: starIcon(), label: 'SPEA Standards' },
+    { section: 'Reports' },
+    { id: 'report-admin', icon: chartIcon(), label: 'Admin Reports' },
+    { id: 'report-activity', icon: listIcon(), label: 'Activity Log' },
+  ] : [
+    { section: 'Main' },
+    { id: 'dashboard', icon: homeIcon(), label: 'Dashboard' },
+    { section: 'My Work' },
+    { id: 'files', icon: folderIcon(), label: 'File Management' },
+    { section: 'Quality Assurance' },
+    { id: 'standards', icon: starIcon(), label: 'SPEA Standards' },
+    { section: 'Reports' },
+    { id: 'report-teacher', icon: chartIcon(), label: 'My Reports' },
+  ];
+
+  nav.innerHTML = items.map(item => {
+    if (item.section) return `<div class="nav-section">${item.section}</div>`;
+    return `<div class="nav-item" id="nav-${item.id}" onclick="navigateTo('${item.id}')">
+      ${item.icon}<span>${item.label}</span>
+    </div>`;
+  }).join('');
+}
+
+function navigateTo(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navItem = document.getElementById('nav-' + page);
+  if (navItem) navItem.classList.add('active');
+
+  const titles = {
+    dashboard: 'Dashboard',
+    users: 'User Management',
+    files: 'File Management',
+    standards: 'SPEA Standards',
+    'report-admin': 'Admin Reports',
+    'report-teacher': 'My Reports',
+    'report-activity': 'Activity Log'
+  };
+
+  document.getElementById('page-title').textContent = titles[page] || page;
+  document.getElementById('topbar-right').innerHTML = '';
+
+  const content = document.getElementById('page-content');
+  content.innerHTML = '<div class="empty-state"><div class="spinner" style="border-color:var(--border); border-top-color:var(--primary); width:32px;height:32px;"></div></div>';
+
+  const pages = {
+    dashboard: renderDashboard,
+    users: renderUsersPage,
+    files: renderFilesPage,
+    standards: renderStandardsPage,
+    'report-admin': renderAdminReport,
+    'report-teacher': renderTeacherReport,
+    'report-activity': renderActivityLog
+  };
+
+  if (pages[page]) pages[page]();
+}
+
+// ── Dashboard ──────────────────────────────────
+async function renderDashboard() {
+  const isAdmin = currentUserDoc.role === 'admin';
+  const content = document.getElementById('page-content');
+
+  const [usersSnap, filesSnap, foldersSnap] = await Promise.all([
+    db.collection('users').get(),
+    db.collection('files').get(),
+    db.collection('folders').get()
+  ]);
+
+  const totalUsers = usersSnap.size;
+  const totalFiles = filesSnap.size;
+  const myFiles = filesSnap.docs.filter(d => d.data().uploadedBy === currentUser.uid).length;
+
+  const recentFiles = filesSnap.docs
+    .sort((a,b) => (b.data().uploadedAt?.seconds||0) - (a.data().uploadedAt?.seconds||0))
+    .slice(0,5);
+
+  content.innerHTML = `
+    <div class="stats-grid">
+      ${isAdmin ? `
+        <div class="stat-card">
+          <div class="stat-label">Total Users</div>
+          <div class="stat-value">${totalUsers}</div>
+          <div class="stat-sub">Registered accounts</div>
+        </div>
+      ` : ''}
+      <div class="stat-card">
+        <div class="stat-label">${isAdmin ? 'Total Files' : 'My Files'}</div>
+        <div class="stat-value">${isAdmin ? totalFiles : myFiles}</div>
+        <div class="stat-sub">Uploaded documents</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">SPEA Standards</div>
+        <div class="stat-value">6</div>
+        <div class="stat-sub">Quality frameworks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Focus Areas</div>
+        <div class="stat-value">${SPEA_STANDARDS.reduce((s,x) => s + x.focusAreas.length, 0)}</div>
+        <div class="stat-sub">Evaluation criteria</div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">SPEA Standards Overview</div>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('standards')">View All</button>
+        </div>
+        <div class="card-body">
+          ${SPEA_STANDARDS.map(s => `
+            <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--bg3);">
+              <div style="width:28px;height:28px;border-radius:8px;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0;">${s.number}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.title}</div>
+                <div style="font-size:.7rem;color:var(--text3);">${s.focusAreas.length} focus areas</div>
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="openStandard('${s.id}')">Open</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Files</div>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('files')">Manage</button>
+        </div>
+        <div class="card-body">
+          ${recentFiles.length === 0 ? '<div class="empty-state"><p>No files uploaded yet</p></div>' :
+            recentFiles.map(f => {
+              const d = f.data();
+              return `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--bg3);">
+                <span style="font-size:1.3rem;">${fileEmoji(d.name)}</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.name}</div>
+                  <div style="font-size:.7rem;color:var(--text3);">${d.uploadedByName || 'Unknown'} · ${timeAgo(d.uploadedAt)}</div>
+                </div>
+              </div>`;
+            }).join('')
+          }
+        </div>
+      </div>
+    </div>
+
+    ${isAdmin ? `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Quick Actions</div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="navigateTo('users'); setTimeout(showCreateUserModal, 300)">+ Add User</button>
+            <button class="btn btn-outline" onclick="navigateTo('files')">📁 File Manager</button>
+            <button class="btn btn-outline" onclick="navigateTo('report-admin')">📊 View Reports</button>
+            <button class="btn btn-outline" onclick="navigateTo('standards')">⭐ SPEA Standards</button>
+          </div>
+        </div>
+      </div>
+    ` : `
+      <div class="card">
+        <div class="card-header"><div class="card-title">Quick Actions</div></div>
+        <div class="card-body">
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="navigateTo('files')">📁 Upload File</button>
+            <button class="btn btn-outline" onclick="navigateTo('standards')">⭐ View Standards</button>
+            <button class="btn btn-outline" onclick="navigateTo('report-teacher')">📊 My Report</button>
+          </div>
+        </div>
+      </div>
+    `}
+  `;
+}
+
+// ── User Management (Admin) ────────────────────
+async function renderUsersPage() {
+  const content = document.getElementById('page-content');
+  document.getElementById('topbar-right').innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="showCreateUserModal()">+ Add User</button>
+  `;
+
+  const snap = await db.collection('users').get();
+  const users = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Users (${users.length})</div>
+        <input class="form-control" style="width:220px;" id="user-search" placeholder="Search users..." oninput="filterUsers()" />
+      </div>
+      <div class="table-wrap">
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Email</th><th>Designation</th><th>Role</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(u => `
+              <tr data-search="${(u.name+' '+u.email+' '+u.designation).toLowerCase()}">
+                <td><span class="badge badge-primary">${u.id || '—'}</span></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:.5rem;">
+                    <div class="avatar avatar-primary" style="width:28px;height:28px;font-size:.65rem;background:${u.role==='admin'?'var(--primary)':'var(--primary-light)'};">${initials(u.name)}</div>
+                    <strong>${u.name}</strong>
+                  </div>
+                </td>
+                <td>${u.email}</td>
+                <td>${u.designation || '—'}</td>
+                <td><span class="badge ${u.role==='admin'?'badge-accent':'badge-info'}">${u.role==='admin'?'Admin':'Teacher'}</span></td>
+                <td>
+                  <div style="display:flex;gap:.4rem;">
+                    <button class="btn btn-outline btn-sm" onclick="showEditUserModal('${u.uid}')">✏️ Edit</button>
+                    ${u.uid !== currentUser.uid ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.uid}','${u.name}')">🗑️</button>` : ''}
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function filterUsers() {
+  const q = document.getElementById('user-search').value.toLowerCase();
+  document.querySelectorAll('#users-table tbody tr').forEach(tr => {
+    tr.style.display = !q || tr.dataset.search.includes(q) ? '' : 'none';
+  });
+}
+
+function showCreateUserModal() {
+  showModal(`
+    <div class="modal-header">
+      <h3>Create New User</h3>
+      <button class="close-btn" onclick="closeModal()">${xIcon()}</button>
+    </div>
+    <div class="modal-body">
+      <div id="create-user-error" class="alert alert-danger" style="display:none"></div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Employee / Staff ID *</label>
+          <input class="form-control" id="cu-id" placeholder="e.g. TCH001" />
+        </div>
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input class="form-control" id="cu-name" placeholder="Full Name" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email Address *</label>
+        <input class="form-control" id="cu-email" type="email" placeholder="user@school.ae" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Designation *</label>
+          <input class="form-control" id="cu-designation" placeholder="e.g. Math Teacher" />
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <select class="form-control" id="cu-role">
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Password *</label>
+        <input class="form-control" id="cu-password" type="password" placeholder="Min 6 characters" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="create-user-btn" onclick="createUser()">Create User</button>
+    </div>
+  `);
+}
+
+async function createUser() {
+  const id = document.getElementById('cu-id').value.trim();
+  const name = document.getElementById('cu-name').value.trim();
+  const email = document.getElementById('cu-email').value.trim();
+  const designation = document.getElementById('cu-designation').value.trim();
+  const role = document.getElementById('cu-role').value;
+  const password = document.getElementById('cu-password').value;
+  const errEl = document.getElementById('create-user-error');
+
+  if (!id || !name || !email || !designation || !password) {
+    errEl.style.display=''; errEl.textContent='All fields are required.'; return;
+  }
+  if (password.length < 6) {
+    errEl.style.display=''; errEl.textContent='Password must be at least 6 characters.'; return;
+  }
+
+  const btn = document.getElementById('create-user-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating...';
+
+  try {
+    // We use a secondary auth for creating users (workaround: use admin SDK pattern)
+    // For client-side, we create user then re-sign-in as admin
+    const adminCreds = auth.currentUser;
+    const adminEmail = currentUserDoc.email;
+    const adminPwdKey = 'spea_admin_session';
+
+    const newApp = firebase.initializeApp(firebase.app().options, 'secondary_' + Date.now());
+    const secAuth = newApp.auth();
+    const cred = await secAuth.createUserWithEmailAndPassword(email, password);
+    const newUid = cred.user.uid;
+
+    await db.collection('users').doc(newUid).set({
+      id, name, email, designation, role,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: currentUser.uid
+    });
+
+    await secAuth.signOut();
+    await newApp.delete();
+
+    await logActivity('User Created', `Created user ${name} (${email})`);
+
+    closeModal();
+    showToast(`User ${name} created successfully!`, 'success');
+    renderUsersPage();
+  } catch(e) {
+    errEl.style.display=''; errEl.textContent = 'Error: ' + e.message;
+    btn.disabled=false; btn.innerHTML='Create User';
+  }
+}
+
+async function showEditUserModal(uid) {
+  const doc = await db.collection('users').doc(uid).get();
+  const u = doc.data();
+
+  showModal(`
+    <div class="modal-header">
+      <h3>Edit User: ${u.name}</h3>
+      <button class="close-btn" onclick="closeModal()">${xIcon()}</button>
+    </div>
+    <div class="modal-body">
+      <div id="edit-user-error" class="alert alert-danger" style="display:none"></div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Employee / Staff ID</label>
+          <input class="form-control" id="eu-id" value="${u.id||''}" />
+        </div>
+        <div class="form-group">
+          <label>Full Name</label>
+          <input class="form-control" id="eu-name" value="${u.name||''}" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email (read-only)</label>
+        <input class="form-control" value="${u.email}" disabled />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Designation</label>
+          <input class="form-control" id="eu-designation" value="${u.designation||''}" />
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select class="form-control" id="eu-role">
+            <option value="teacher" ${u.role==='teacher'?'selected':''}>Teacher</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateUser('${uid}')">Save Changes</button>
+    </div>
+  `);
+}
+
+async function updateUser(uid) {
+  const id = document.getElementById('eu-id').value.trim();
+  const name = document.getElementById('eu-name').value.trim();
+  const designation = document.getElementById('eu-designation').value.trim();
+  const role = document.getElementById('eu-role').value;
+  const errEl = document.getElementById('edit-user-error');
+
+  if (!name) { errEl.style.display=''; errEl.textContent='Name is required.'; return; }
+
+  try {
+    await db.collection('users').doc(uid).update({ id, name, designation, role });
+    await logActivity('User Updated', `Updated user profile ${name}`);
+    closeModal();
+    showToast('User updated successfully!', 'success');
+    renderUsersPage();
+  } catch(e) {
+    errEl.style.display=''; errEl.textContent='Error: '+e.message;
+  }
+}
+
+async function deleteUser(uid, name) {
+  if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  try {
+    await db.collection('users').doc(uid).delete();
+    await logActivity('User Deleted', `Deleted user ${name}`);
+    showToast(`User "${name}" deleted.`, 'danger');
+    renderUsersPage();
+  } catch(e) { showToast('Error: '+e.message, 'danger'); }
+}
+
+// ── File Management ─────────────────────────────
+let currentFolderId = null;
+let currentStandardId = null;
+let allFolders = [];
+
+async function renderFilesPage() {
+  const content = document.getElementById('page-content');
+
+  const snap = await db.collection('folders').get();
+  allFolders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Default to first standard
+  if (!currentStandardId) currentStandardId = 'std1';
+  if (!currentFolderId) currentFolderId = 'std1';
+
+  renderFileExplorer();
+}
+
+function renderFileExplorer() {
+  const content = document.getElementById('page-content');
+
+  const standards = allFolders.filter(f => f.type === 'standard');
+  const subFolders = allFolders.filter(f => f.parentId === currentStandardId);
+
+  content.innerHTML = `
+    <div class="file-explorer">
+      <div class="folder-tree card" style="padding:.75rem;">
+        <div style="font-size:.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;padding:0 .25rem;">SPEA Standards</div>
+        ${standards.map(s => {
+          const std = SPEA_STANDARDS.find(x => x.id === s.id);
+          const isOpen = s.id === currentStandardId;
+          const sub = allFolders.filter(f => f.parentId === s.id);
+          return `
+            <div class="folder-item ${s.id === currentStandardId && currentFolderId === s.id ? 'active' : ''}" onclick="openStandardFolder('${s.id}')">
+              <span style="font-size:.75rem;font-weight:800;color:${std?.color||'#666'};min-width:16px;">${std?.number||''}</span>
+              <span style="flex:1;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${s.name}">${s.name}</span>
+            </div>
+            ${isOpen ? sub.map(fa => `
+              <div class="sub-folder-item ${fa.id === currentFolderId ? 'active' : ''}" onclick="openFocusArea('${s.id}','${fa.id}')">
+                ${folderSmIcon()}
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${fa.name}">${fa.name}</span>
+              </div>
+            `).join('') : ''}
+          `;
+        }).join('')}
+        <div style="border-top:1px solid var(--border);margin:.5rem 0;"></div>
+        <button class="btn btn-outline btn-sm btn-full" onclick="showCreateFolderModal()">+ New Folder</button>
+      </div>
+
+      <div class="folder-pane">
+        <div id="file-pane-content">
+          <div class="empty-state"><div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:28px;height:28px;"></div></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  loadFolderFiles();
+}
+
+function openStandardFolder(stdId) {
+  currentStandardId = stdId;
+  currentFolderId = stdId;
+  renderFileExplorer();
+}
+
+function openFocusArea(stdId, folderId) {
+  currentStandardId = stdId;
+  currentFolderId = folderId;
+  renderFileExplorer();
+}
+
+async function openStandard(stdId) {
+  navigateTo('files');
+  currentStandardId = stdId;
+  currentFolderId = stdId;
+  setTimeout(() => renderFileExplorer(), 500);
+}
+
+async function loadFolderFiles() {
+  const pane = document.getElementById('file-pane-content');
+  const folder = allFolders.find(f => f.id === currentFolderId);
+  const std = SPEA_STANDARDS.find(s => s.id === currentStandardId);
+
+  const snap = await db.collection('files').where('folderId', '==', currentFolderId).get();
+  const files = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Breadcrumb
+  let breadcrumb = '';
+  if (folder) {
+    if (folder.type === 'focus_area') {
+      const parent = allFolders.find(f => f.id === folder.parentId);
+      breadcrumb = `
+        <div class="breadcrumb">
+          <span class="crumb" onclick="openStandardFolder('${parent?.id}')">${parent?.name}</span>
+          <span class="sep">›</span>
+          <span class="current">${folder.name}</span>
+        </div>
+      `;
+    } else {
+      breadcrumb = `<div class="breadcrumb"><span class="current">${folder.name}</span></div>`;
+    }
+  }
+
+  pane.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          ${breadcrumb}
+          <div class="card-title">${folder?.name || 'Folder'}</div>
+          ${std ? `<div class="text-sm">Standard ${std.number}: ${std.title}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="showUploadModal()">⬆️ Upload File</button>
+          <button class="btn btn-outline btn-sm" onclick="showCreateFolderModal('${currentFolderId}')">📁 New Subfolder</button>
+        </div>
+      </div>
+      <div class="card-body">
+        ${files.length === 0 ? `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>No files in this folder</p>
+            <button class="btn btn-primary btn-sm mt-1" onclick="showUploadModal()">Upload First File</button>
+          </div>
+        ` : `
+          <div class="file-grid">
+            ${files.map(f => `
+              <div class="file-card">
+                <div class="file-icon">${fileEmoji(f.name)}</div>
+                <div class="file-name">${f.name}</div>
+                <div class="file-meta">${f.uploadedByName||'Unknown'}</div>
+                <div class="file-meta">${timeAgo(f.uploadedAt)}</div>
+                <div class="file-actions">
+                  <button class="btn btn-outline btn-sm" title="Preview" onclick="previewFile('${f.id}')">👁️</button>
+                  <button class="btn btn-outline btn-sm" title="Download" onclick="downloadFile('${f.id}')">⬇️</button>
+                  <button class="btn btn-outline btn-sm" title="Delete" onclick="deleteFile('${f.id}','${f.name.replace(/'/g,"\\'")}')">🗑️</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function showUploadModal() {
+  showModal(`
+    <div class="modal-header">
+      <h3>Upload File</h3>
+      <button class="close-btn" onclick="closeModal()">${xIcon()}</button>
+    </div>
+    <div class="modal-body">
+      <div id="upload-error" class="alert alert-danger" style="display:none"></div>
+      <div class="alert alert-info">
+        Uploading to: <strong>${allFolders.find(f=>f.id===currentFolderId)?.name || currentFolderId}</strong>
+      </div>
+      <div class="form-group">
+        <label>Select File(s) *</label>
+        <input class="form-control" id="upload-files" type="file" multiple />
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea class="form-control" id="upload-desc" placeholder="Brief description of the file..."></textarea>
+      </div>
+      <div id="upload-progress" style="display:none">
+        <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden;margin-top:.5rem;">
+          <div id="progress-bar" style="height:100%;background:var(--primary-light);width:0%;transition:width .3s;"></div>
+        </div>
+        <div id="progress-text" class="text-sm mt-1">Uploading...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="upload-btn" onclick="uploadFiles()">Upload</button>
+    </div>
+  `);
+}
+
+async function uploadFiles() {
+  const input = document.getElementById('upload-files');
+  const desc = document.getElementById('upload-desc').value.trim();
+  const errEl = document.getElementById('upload-error');
+  const btn = document.getElementById('upload-btn');
+  const progDiv = document.getElementById('upload-progress');
+  const bar = document.getElementById('progress-bar');
+  const progText = document.getElementById('progress-text');
+
+  if (!input.files.length) { errEl.style.display=''; errEl.textContent='Please select at least one file.'; return; }
+
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Uploading...';
+  progDiv.style.display='';
+
+  const files = Array.from(input.files);
+  let done = 0;
+
+  for (const file of files) {
+    try {
+      progText.textContent = `Uploading ${file.name}...`;
+      const path = `files/${currentFolderId}/${Date.now()}_${file.name}`;
+      const ref = storage.ref(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+
+      await db.collection('files').add({
+        name: file.name,
+        description: desc,
+        folderId: currentFolderId,
+        standardId: currentStandardId,
+        url: url,
+        path: path,
+        size: file.size,
+        type: file.type,
+        uploadedBy: currentUser.uid,
+        uploadedByName: currentUserDoc.name,
+        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      await logActivity('File Uploaded', `Uploaded "${file.name}" to ${allFolders.find(f=>f.id===currentFolderId)?.name}`);
+      done++;
+      bar.style.width = (done/files.length*100) + '%';
+    } catch(e) {
+      errEl.style.display=''; errEl.textContent='Error uploading '+file.name+': '+e.message;
+    }
+  }
+
+  closeModal();
+  showToast(`${done} file(s) uploaded successfully!`, 'success');
+  loadFolderFiles();
+}
+
+async function previewFile(fileId) {
+  const doc = await db.collection('files').doc(fileId).get();
+  const f = doc.data();
+
+  showModal(`
+    <div class="modal-header">
+      <h3>Preview: ${f.name}</h3>
+      <button class="close-btn" onclick="closeModal()">${xIcon()}</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:1rem;">
+        <strong>File:</strong> ${f.name}<br>
+        <strong>Uploaded by:</strong> ${f.uploadedByName} · <strong>Folder:</strong> ${allFolders.find(x=>x.id===f.folderId)?.name}
+      </div>
+      ${f.type?.startsWith('image/') ? `
+        <img src="${f.url}" style="max-width:100%;border-radius:var(--radius);" />
+      ` : f.type === 'application/pdf' ? `
+        <iframe src="${f.url}" class="preview-frame"></iframe>
+      ` : `
+        <div class="empty-state">
+          <p style="font-size:3rem;">${fileEmoji(f.name)}</p>
+          <p>Preview not available for this file type.</p>
+          <p class="text-sm">Click Download to open this file.</p>
+        </div>
+      `}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-outline" onclick="window.open('${f.url}','_blank')">🖨️ Print Preview</button>
+      <button class="btn btn-primary" onclick="downloadFile('${fileId}')">⬇️ Download</button>
+    </div>
+  `);
+}
+
+async function downloadFile(fileId) {
+  const doc = await db.collection('files').doc(fileId).get();
+  const f = doc.data();
+  const a = document.createElement('a');
+  a.href = f.url; a.download = f.name; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  await logActivity('File Downloaded', `Downloaded "${f.name}"`);
+  showToast('Download started!', 'success');
+}
+
+async function deleteFile(fileId, fileName) {
+  if (!confirm(`Delete "${fileName}"? This cannot be undone.`)) return;
+  try {
+    const doc = await db.collection('files').doc(fileId).get();
+    const f = doc.data();
+    try { await storage.ref(f.path).delete(); } catch(e) {}
+    await db.collection('files').doc(fileId).delete();
+    await logActivity('File Deleted', `Deleted "${fileName}"`);
+    showToast(`"${fileName}" deleted.`, 'danger');
+    loadFolderFiles();
+  } catch(e) { showToast('Error: '+e.message, 'danger'); }
+}
+
+function showCreateFolderModal(parentId) {
+  showModal(`
+    <div class="modal-header">
+      <h3>Create New Folder</h3>
+      <button class="close-btn" onclick="closeModal()">${xIcon()}</button>
+    </div>
+    <div class="modal-body">
+      <div id="cf-error" class="alert alert-danger" style="display:none"></div>
+      <div class="form-group">
+        <label>Folder Name *</label>
+        <input class="form-control" id="cf-name" placeholder="e.g. Math Department" />
+      </div>
+      <div class="form-group">
+        <label>Parent Standard</label>
+        <select class="form-control" id="cf-parent">
+          <option value="">— Top level (under standard) —</option>
+          ${SPEA_STANDARDS.map(s => `<option value="${s.id}" ${parentId===s.id?'selected':''}>Standard ${s.number}: ${s.title}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createFolder()">Create Folder</button>
+    </div>
+  `);
+}
+
+async function createFolder() {
+  const name = document.getElementById('cf-name').value.trim();
+  const parentId = document.getElementById('cf-parent').value;
+  const errEl = document.getElementById('cf-error');
+  if (!name) { errEl.style.display=''; errEl.textContent='Folder name is required.'; return; }
+
+  const folderId = 'folder_' + Date.now();
+  await db.collection('folders').doc(folderId).set({
+    id: folderId, name,
+    type: parentId ? 'focus_area' : 'custom',
+    parentId: parentId || null,
+    standardId: parentId || null,
+    createdBy: currentUser.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  const snap = await db.collection('folders').get();
+  allFolders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  closeModal();
+  showToast(`Folder "${name}" created!`, 'success');
+  renderFileExplorer();
+}
+
+// ── SPEA Standards ─────────────────────────────
+async function renderStandardsPage() {
+  const content = document.getElementById('page-content');
+
+  content.innerHTML = `
+    <div class="mb-2">
+      <div class="alert alert-info">
+        These are the 6 key performance standards used by the Sharjah Private Education Authority (SPEA) under its ITQAN quality assurance and inspection framework.
+      </div>
+    </div>
+    <div class="standard-grid">
+      ${SPEA_STANDARDS.map(s => `
+        <div class="standard-card" onclick="openStandard('${s.id}')">
+          <div class="std-num">Standard ${s.number}</div>
+          <div class="std-title" style="color:${s.color}">${s.title}</div>
+          <div class="std-areas">
+            ${s.focusAreas.map(fa => `<span class="focus-area-tag">${fa}</span>`).join('')}
+          </div>
+          <div style="margin-top:.75rem;display:flex;justify-content:flex-end;">
+            <button class="btn btn-sm" style="background:${s.color};color:#fff;">Open Files →</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="mt-2 card">
+      <div class="card-header"><div class="card-title">Inspection Ratings</div></div>
+      <div class="card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+          ${[
+            {r:'Outstanding',c:'badge-success'},
+            {r:'Very Good',c:'badge-info'},
+            {r:'Good',c:'badge-primary'},
+            {r:'Acceptable',c:'badge-warning'},
+            {r:'Weak',c:'badge-danger'},
+            {r:'Very Weak',c:'badge-danger'}
+          ].map(x=>`<span class="badge ${x.c}" style="font-size:.8rem;padding:.3rem .75rem;">${x.r}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2 card">
+      <div class="card-header"><div class="card-title">Special Focus Areas</div></div>
+      <div class="card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+          ${['Arabic Language Provision','Islamic Education','Inclusion for Students of Determination','Innovation & Digital Learning','UAE Social Studies & Moral Education'].map(a=>`<span class="badge badge-accent" style="font-size:.78rem;padding:.3rem .75rem;">${a}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Admin Report ───────────────────────────────
+async function renderAdminReport() {
+  const content = document.getElementById('page-content');
+  document.getElementById('topbar-right').innerHTML = `<button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print Report</button>`;
+
+  const [usersSnap, filesSnap, foldersSnap] = await Promise.all([
+    db.collection('users').get(),
+    db.collection('files').get(),
+    db.collection('folders').get()
+  ]);
+
+  const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  const files = filesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Files per standard
+  const filesByStandard = {};
+  SPEA_STANDARDS.forEach(s => { filesByStandard[s.id] = 0; });
+  files.forEach(f => { if (f.standardId && filesByStandard[f.standardId] !== undefined) filesByStandard[f.standardId]++; });
+
+  // Files per user
+  const filesByUser = {};
+  users.forEach(u => { filesByUser[u.uid] = 0; });
+  files.forEach(f => { if (f.uploadedBy) filesByUser[f.uploadedBy] = (filesByUser[f.uploadedBy]||0) + 1; });
+
+  content.innerHTML = `
+    <div id="report-print">
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <h2 style="font-size:1.4rem;color:var(--primary);font-weight:800;">SPEA School Management System</h2>
+        <p style="color:var(--text3);">Admin Report — Generated on ${new Date().toLocaleDateString('en-AE', {day:'numeric',month:'long',year:'numeric'})}</p>
+      </div>
+
+      <div class="stats-grid mb-2">
+        <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value">${users.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Files</div><div class="stat-value">${files.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Teachers</div><div class="stat-value">${users.filter(u=>u.role==='teacher').length}</div></div>
+        <div class="stat-card"><div class="stat-label">Admins</div><div class="stat-value">${users.filter(u=>u.role==='admin').length}</div></div>
+      </div>
+
+      <div class="report-section">
+        <h3>Files by SPEA Standard</h3>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>Standard</th><th>Title</th><th>File Count</th><th>Status</th></tr></thead>
+              <tbody>
+                ${SPEA_STANDARDS.map(s => `
+                  <tr>
+                    <td><span style="font-weight:700;color:${s.color}">Standard ${s.number}</span></td>
+                    <td>${s.title}</td>
+                    <td><strong>${filesByStandard[s.id]||0}</strong></td>
+                    <td>
+                      <span class="badge ${(filesByStandard[s.id]||0)>0?'badge-success':'badge-warning'}">
+                        ${(filesByStandard[s.id]||0)>0?'Has Files':'No Files'}
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <h3>User Overview</h3>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Designation</th><th>Role</th><th>Files Uploaded</th></tr></thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td>${u.id||'—'}</td>
+                    <td><strong>${u.name}</strong></td>
+                    <td>${u.email}</td>
+                    <td>${u.designation||'—'}</td>
+                    <td><span class="badge ${u.role==='admin'?'badge-accent':'badge-info'}">${u.role}</span></td>
+                    <td>${filesByUser[u.uid]||0}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <h3>Recent File Uploads</h3>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>File Name</th><th>Uploaded By</th><th>Standard</th><th>Folder</th><th>Date</th></tr></thead>
+              <tbody>
+                ${files.sort((a,b)=>(b.uploadedAt?.seconds||0)-(a.uploadedAt?.seconds||0)).slice(0,20).map(f => {
+                  const std = SPEA_STANDARDS.find(s => s.id === f.standardId);
+                  const folder = foldersSnap.docs.find(d => d.id === f.folderId)?.data();
+                  return `<tr>
+                    <td><span style="margin-right:.4rem;">${fileEmoji(f.name)}</span>${f.name}</td>
+                    <td>${f.uploadedByName||'—'}</td>
+                    <td>${std ? `<span style="color:${std.color};font-weight:600;">Std ${std.number}</span>` : '—'}</td>
+                    <td>${folder?.name||'—'}</td>
+                    <td>${timeAgo(f.uploadedAt)}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Teacher Report ─────────────────────────────
+async function renderTeacherReport() {
+  const content = document.getElementById('page-content');
+  document.getElementById('topbar-right').innerHTML = `<button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print Report</button>`;
+
+  const [filesSnap, foldersSnap] = await Promise.all([
+    db.collection('files').where('uploadedBy', '==', currentUser.uid).get(),
+    db.collection('folders').get()
+  ]);
+
+  const files = filesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const folders = foldersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const filesByStandard = {};
+  SPEA_STANDARDS.forEach(s => { filesByStandard[s.id] = 0; });
+  files.forEach(f => { if (f.standardId) filesByStandard[f.standardId] = (filesByStandard[f.standardId]||0)+1; });
+
+  content.innerHTML = `
+    <div>
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <h2 style="font-size:1.3rem;color:var(--primary);font-weight:800;">Personal Activity Report</h2>
+        <p style="color:var(--text3);">${currentUserDoc.name} · ${currentUserDoc.designation||'Staff'}</p>
+        <p style="color:var(--text3);font-size:.8rem;">Generated on ${new Date().toLocaleDateString('en-AE',{day:'numeric',month:'long',year:'numeric'})}</p>
+      </div>
+
+      <div class="stats-grid mb-2">
+        <div class="stat-card"><div class="stat-label">Total Files</div><div class="stat-value">${files.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Standards Covered</div><div class="stat-value">${Object.values(filesByStandard).filter(v=>v>0).length}</div></div>
+      </div>
+
+      <div class="report-section">
+        <h3>My Files by SPEA Standard</h3>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>Standard</th><th>Title</th><th>My Files</th></tr></thead>
+              <tbody>
+                ${SPEA_STANDARDS.map(s => `
+                  <tr>
+                    <td><span style="font-weight:700;color:${s.color}">Standard ${s.number}</span></td>
+                    <td>${s.title}</td>
+                    <td>${filesByStandard[s.id]||0}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <h3>All My Uploaded Files</h3>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>File</th><th>Folder</th><th>Standard</th><th>Uploaded</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${files.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:2rem;">No files uploaded yet</td></tr>' :
+                  files.sort((a,b)=>(b.uploadedAt?.seconds||0)-(a.uploadedAt?.seconds||0)).map(f => {
+                    const std = SPEA_STANDARDS.find(s => s.id === f.standardId);
+                    const folder = folders.find(x => x.id === f.folderId);
+                    return `<tr>
+                      <td><span style="margin-right:.4rem;">${fileEmoji(f.name)}</span>${f.name}</td>
+                      <td>${folder?.name||'—'}</td>
+                      <td>${std ? `<span style="color:${std.color};font-weight:600;">Std ${std.number}</span>` : '—'}</td>
+                      <td>${timeAgo(f.uploadedAt)}</td>
+                      <td>
+                        <div style="display:flex;gap:.3rem;" class="no-print">
+                          <button class="btn btn-outline btn-sm" onclick="previewFile('${f.id}')">👁️</button>
+                          <button class="btn btn-outline btn-sm" onclick="downloadFile('${f.id}')">⬇️</button>
+                          <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.id}','${f.name.replace(/'/g,"\\'")}')">🗑️</button>
+                        </div>
+                      </td>
+                    </tr>`;
+                  }).join('')
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Activity Log (Admin) ──────────────────────
+async function renderActivityLog() {
+  const content = document.getElementById('page-content');
+  document.getElementById('topbar-right').innerHTML = `<button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print</button>`;
+
+  const snap = await db.collection('activity_log')
+    .orderBy('timestamp', 'desc')
+    .limit(100)
+    .get();
+
+  const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Activity Log (Last 100 entries)</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+          <tbody>
+            ${logs.length === 0 ? '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3);">No activity recorded yet</td></tr>' :
+              logs.map(l => `
+                <tr>
+                  <td style="white-space:nowrap;">${timeAgo(l.timestamp)}</td>
+                  <td><strong>${l.userName||'System'}</strong></td>
+                  <td><span class="badge badge-primary">${l.action}</span></td>
+                  <td>${l.details||'—'}</td>
+                </tr>
+              `).join('')
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function logActivity(action, details) {
+  try {
+    await db.collection('activity_log').add({
+      action, details,
+      userId: currentUser?.uid,
+      userName: currentUserDoc?.name,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {}
+}
+
+// ── Helpers ────────────────────────────────────
+function fileEmoji(name) {
+  if (!name) return '📄';
+  const ext = name.split('.').pop().toLowerCase();
+  const map = {
+    pdf:'📕', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
+    ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️',
+    mp4:'🎬', mp3:'🎵', zip:'🗜️', rar:'🗜️', txt:'📄',
+    csv:'📊', json:'⚙️'
+  };
+  return map[ext] || '📄';
+}
+
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+  return d.toLocaleDateString('en-AE');
+}
+
+function showModal(html) {
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">${html}</div>
+    </div>
+  `;
+}
+
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+}
+
+function showToast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// Icons
+function homeIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`; }
+function usersIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`; }
+function folderIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`; }
+function starIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`; }
+function chartIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`; }
+function listIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`; }
+function folderSmIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`; }
+function xIcon() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`; }
+
+// ── Boot ───────────────────────────────────────
+window.addEventListener('DOMContentLoaded', loadSavedConfig);
+</script>
+</body>
+</html>

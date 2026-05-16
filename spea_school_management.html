@@ -438,11 +438,11 @@
 <!-- Setup Screen -->
 <div id="setup-screen">
   <div class="setup-card">
-    <h2>🔧 Firebase Configuration Required</h2>
-    <p>To use this application, you need to connect your Firebase project. Enter your Firebase configuration details below. You can find these in your Firebase Console → Project Settings → General → Your apps.</p>
+    <h2>🔧 Firebase Configuration</h2>
+    <p>Enter your Firebase project details <strong>once</strong> — they'll be saved in the cloud so any device or browser connects automatically next time. Find these in Firebase Console → Project Settings → General → Your apps.</p>
 
     <div class="alert alert-info">
-      <strong>Required Firebase Services:</strong> Authentication (Email/Password), Firestore Database, Storage
+      <strong>One-time setup:</strong> After connecting, your config is saved to Firestore. On other devices, just enter your <strong>Project ID</strong> using the Quick Connect box below — no need to re-enter everything.
     </div>
 
     <div class="form-group">
@@ -479,7 +479,8 @@
 
   <div class="setup-card" style="background:rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);">
     <p style="color:rgba(255,255,255,.8); font-size:.82rem; margin:0;">
-      <strong style="color:#fff">First-time setup:</strong> After connecting Firebase, the app will automatically create the 6 SPEA standards structure and an admin account (admin@spea.ae / admin123456). You can change these credentials after logging in.
+      <strong style="color:#fff">First-time setup:</strong> After connecting Firebase, the app will automatically create the 6 SPEA standards structure and an admin account (admin@spea.ae / admin123456). You can change these credentials after logging in.<br><br>
+      <strong style="color:#fff">Other devices:</strong> Use the <strong>Quick Connect</strong> box — just enter your Firebase Project ID and everything loads automatically.
     </p>
   </div>
 </div>
@@ -631,6 +632,11 @@ const SPEA_STANDARDS = [
 const RATINGS = ['Outstanding', 'Very Good', 'Good', 'Acceptable', 'Weak', 'Very Weak'];
 
 // ── Firebase Init ──────────────────────────────
+// CONFIG_PROJECT_ID is embedded at save-time so cross-device bootstrap works.
+// We store the full config in Firestore doc _config/firebase so any device
+// that knows the projectId can fetch the rest automatically.
+const BOOTSTRAP_PROJECT_ID_KEY = 'spea_bootstrap_projectId';
+
 async function initFirebase() {
   const config = {
     apiKey:            document.getElementById('cfg-apiKey').value.trim(),
@@ -660,8 +666,13 @@ async function initFirebase() {
     // Test connection by pinging Firestore
     await db.collection('_ping').doc('test').set({ ts: Date.now() });
 
-    // Save config for future loads
+    // ── Save config in BOTH localStorage AND Firestore ──
+    // localStorage: fast load on same browser
     localStorage.setItem('spea_firebase_config', JSON.stringify(config));
+    // Firestore: any device with the projectId can pull full config
+    await db.collection('_config').doc('firebase').set({ config, savedAt: Date.now() });
+    // Save just the projectId in localStorage as a bootstrap key for other devices
+    localStorage.setItem(BOOTSTRAP_PROJECT_ID_KEY, config.projectId);
 
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('auth-screen').style.display  = 'flex';
@@ -674,7 +685,7 @@ async function initFirebase() {
     }
 
     setupAuthListener();
-    showToast('Firebase connected! ' + (usersSnap.empty ? 'Please create your admin account.' : 'Please sign in.'), 'success');
+    showToast('Firebase connected & saved! Other devices will connect automatically.', 'success');
   } catch (e) {
     document.getElementById('setup-error').style.display  = '';
     document.getElementById('setup-error').textContent    = 'Firebase error: ' + e.message;
@@ -683,7 +694,24 @@ async function initFirebase() {
   }
 }
 
+// Try to load config from Firestore using just a projectId bootstrap
+async function tryBootstrapFromProjectId(projectId) {
+  try {
+    // Minimal init with just projectId to fetch stored config
+    const tempAppName = 'bootstrap_' + Date.now();
+    const tempApp = firebase.initializeApp({ projectId }, tempAppName);
+    const tempDb = tempApp.firestore();
+    const snap = await tempDb.collection('_config').doc('firebase').get();
+    await tempApp.delete();
+    if (snap.exists) {
+      return snap.data().config;
+    }
+  } catch(e) {}
+  return null;
+}
+
 async function loadSavedConfig() {
+  // 1. Try full config from localStorage (same browser, fastest)
   const saved = localStorage.getItem('spea_firebase_config');
   if (saved) {
     try {
@@ -694,19 +722,99 @@ async function loadSavedConfig() {
       storage = firebase.storage();
       document.getElementById('setup-screen').style.display = 'none';
       document.getElementById('auth-screen').style.display  = 'flex';
-      // If no users exist yet, jump straight to First-Time Setup tab
       try {
         const usersSnap = await db.collection('users').limit(1).get();
         if (usersSnap.empty) switchAuthTab('setup');
       } catch(e) {}
       setupAuthListener();
+      return;
     } catch(e) {
       localStorage.removeItem('spea_firebase_config');
-      document.getElementById('setup-screen').style.display = 'flex';
     }
-  } else {
-    document.getElementById('setup-screen').style.display = 'flex';
   }
+
+  // 2. Try bootstrap from projectId stored in localStorage (different browser, same device)
+  const storedProjectId = localStorage.getItem(BOOTSTRAP_PROJECT_ID_KEY);
+  if (storedProjectId) {
+    const bootstrapConfig = await tryBootstrapFromProjectId(storedProjectId);
+    if (bootstrapConfig) {
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(bootstrapConfig);
+        db      = firebase.firestore();
+        auth    = firebase.auth();
+        storage = firebase.storage();
+        // Cache full config locally for next time
+        localStorage.setItem('spea_firebase_config', JSON.stringify(bootstrapConfig));
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('auth-screen').style.display  = 'flex';
+        try {
+          const usersSnap = await db.collection('users').limit(1).get();
+          if (usersSnap.empty) switchAuthTab('setup');
+        } catch(e) {}
+        setupAuthListener();
+        showToast('Firebase config loaded automatically!', 'success');
+        return;
+      } catch(e) {}
+    }
+  }
+
+  // 3. Show setup screen — show helper text about projectId shortcut
+  const setupScreen = document.getElementById('setup-screen');
+  setupScreen.style.display = 'flex';
+
+  // Add a "Quick Connect" shortcut if they only have the projectId
+  const existingQuick = document.getElementById('quick-connect-block');
+  if (!existingQuick) {
+    const quickHtml = `
+      <div class="setup-card" id="quick-connect-block" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);">
+        <h2 style="color:#fff;font-size:1rem;">⚡ Quick Connect (Other Devices)</h2>
+        <p style="color:rgba(255,255,255,.75);margin-bottom:.75rem;">
+          If this app was already set up on another device, enter your Firebase <strong>Project ID</strong> below and we'll fetch the rest automatically.
+        </p>
+        <div style="display:flex;gap:.5rem;">
+          <input class="form-control" id="quick-projectId" placeholder="your-project-id" style="flex:1;" />
+          <button class="btn btn-accent" onclick="quickConnect()">Connect</button>
+        </div>
+        <div id="quick-error" class="alert alert-danger" style="display:none;margin-top:.5rem;"></div>
+      </div>
+    `;
+    setupScreen.insertAdjacentHTML('beforeend', quickHtml);
+  }
+}
+
+async function quickConnect() {
+  const projectId = document.getElementById('quick-projectId').value.trim();
+  const errEl = document.getElementById('quick-error');
+  const btn = document.querySelector('#quick-connect-block .btn-accent');
+  if (!projectId) { errEl.style.display=''; errEl.textContent='Please enter a Project ID.'; return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  errEl.style.display = 'none';
+
+  const config = await tryBootstrapFromProjectId(projectId);
+  if (config) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(config);
+      db      = firebase.firestore();
+      auth    = firebase.auth();
+      storage = firebase.storage();
+      localStorage.setItem('spea_firebase_config', JSON.stringify(config));
+      localStorage.setItem(BOOTSTRAP_PROJECT_ID_KEY, projectId);
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('auth-screen').style.display  = 'flex';
+      try {
+        const usersSnap = await db.collection('users').limit(1).get();
+        if (usersSnap.empty) switchAuthTab('setup');
+      } catch(e) {}
+      setupAuthListener();
+      showToast('Connected! Config saved for future visits.', 'success');
+      return;
+    } catch(e) {}
+  }
+
+  errEl.style.display='';
+  errEl.textContent = 'Could not find saved config for that Project ID. Please enter full details above.';
+  btn.disabled = false; btn.innerHTML = 'Connect';
 }
 
 function setupAuthListener() {
@@ -1430,8 +1538,10 @@ function showUploadModal() {
         Uploading to: <strong>${allFolders.find(f=>f.id===currentFolderId)?.name || currentFolderId}</strong>
       </div>
       <div class="form-group">
-        <label>Select File(s) *</label>
-        <input class="form-control" id="upload-files" type="file" multiple />
+        <label>Select File(s) * <span style="font-weight:400;color:var(--text3);">— All file types accepted</span></label>
+        <input class="form-control" id="upload-files" type="file" multiple accept="*/*"
+          onchange="showSelectedFiles(this)" style="padding:.5rem;" />
+        <div id="selected-files-list" style="margin-top:.5rem;"></div>
       </div>
       <div class="form-group">
         <label>Description (optional)</label>
@@ -1449,6 +1559,22 @@ function showUploadModal() {
       <button class="btn btn-primary" id="upload-btn" onclick="uploadFiles()">Upload</button>
     </div>
   `);
+}
+
+function showSelectedFiles(input) {
+  const list = document.getElementById('selected-files-list');
+  if (!input.files.length) { list.innerHTML = ''; return; }
+  const items = Array.from(input.files).map(f => {
+    const size = f.size < 1024 ? f.size + ' B'
+               : f.size < 1048576 ? (f.size/1024).toFixed(1) + ' KB'
+               : (f.size/1048576).toFixed(1) + ' MB';
+    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .5rem;background:var(--bg3);border-radius:6px;margin-bottom:.3rem;font-size:.8rem;">
+      <span>${fileEmoji(f.name)}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
+      <span style="color:var(--text3);flex-shrink:0;">${size}</span>
+    </div>`;
+  }).join('');
+  list.innerHTML = `<div style="font-size:.75rem;font-weight:600;color:var(--text3);margin-bottom:.3rem;">${input.files.length} file(s) selected:</div>${items}`;
 }
 
 async function uploadFiles() {
